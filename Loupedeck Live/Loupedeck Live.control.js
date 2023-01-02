@@ -23,6 +23,7 @@ const CC20 = 20
 const CC21 = 21
 const CC22 = 22
 const CC23 = 23
+const CC25 = 25
 
 var isPlaying = false
 var application
@@ -32,6 +33,7 @@ var previousChannelValue = 0
 var previousPanValue = 0
 var previousVolumeValue = 0
 var previousDeviceValue = 0
+var previousBarValue = 0
 
 function init() {
    application = host.createApplication()
@@ -42,6 +44,7 @@ function init() {
    cursorDevice = cursorTrack.createCursorDevice("LOUPEDECK DEVICE", "Device Cursor", 0, CursorDeviceFollowMode.FOLLOW_SELECTION)
    cursorDevice.name().markInterested()
 
+   transport.playStartPosition().markInterested()
    transport.isPlaying().addValueObserver( (newValue) => { isPlaying = newValue } )
 
    println("Loupedeck Live initialized!")
@@ -122,7 +125,19 @@ function onMidi0(status, data1, data2) {
             host.println(cursorDevice.name().get())
             previousDeviceValue = data2
             break
-     
+         case CC25:
+            var currentPos = Math.floor(transport.playStartPosition().get())
+            if (data2 <= previousBarValue) { 
+               application.getAction("jump_to_beginning_of_previous_bar").invoke()
+               // 1.0 is "1 beat", so must have correct time signature to calculate where is a head of next bars. boring.
+               // transport.incPosition(-1.0, true)
+            } else if (data2 >= previousBarValue) {
+               application.getAction("jump_to_beginning_of_next_bar").invoke()
+               // 1.0 is "1 beat", so must have correct time signature to calculate where is a head of next bars. boring.
+               // transport.incPosition(1.0, true)
+            }
+            previousBarValue = data2
+            break            
       }
    }
 }
