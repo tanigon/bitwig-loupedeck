@@ -7,17 +7,95 @@ host.setShouldFailOnDeprecatedUse(true);
 host.defineController("Loupedeck", "Loupedeck Live", "0.1", "8e56e4a9-0159-4e61-b40c-2928bc43e862", "tanigon");
 host.defineMidiPorts(1, 0);
 
+host.addDeviceNameBasedDiscoveryPair(["Loupedeck Live"], ["Loupedeck Live"])
+
+const TIMING_DELAY_MS = 50
+
+const C0 = 24
+const D0 = 26
+const C1 = 36
+const D1 = 38
+const Dis1 = 39
+
+const CC20 = 20
+const CC21 = 21
+const CC22 = 22
+
+var isPlaying = false
+var cursorTrack
+var previousChannelValue = 0
+var previousPanValue = 0
+var previousVolumeValue = 0
+
 function init() {
    transport = host.createTransport();
    host.getMidiInPort(0).setMidiCallback(onMidi0);
    host.getMidiInPort(0).setSysexCallback(onSysex0);
+   cursorTrack = host.createCursorTrack("LOUPEDECK_CURSOR", "Loupedeck Cursor", 0, 0, true)
 
-   println("Loupedeck Live initialized!");
+   transport.isPlaying().addValueObserver( (newValue) => { isPlaying = newValue } )
+
+   println("Loupedeck Live initialized!")
 }
 
 // Called when a short MIDI message is received on MIDI input port 0.
 function onMidi0(status, data1, data2) {
-   // TODO: Implement your MIDI input handling code here.
+   printMidi(status, data1, data2)
+   
+   if (isNoteOn(status)) {
+      switch (data1) { 
+         case C0: // PLAY
+            transport.play()
+            break
+         case C1: // RESTART
+            if (isPlaying) {
+               transport.continuePlayback() // actually it stop and retain playback marker
+               host.scheduleTask( () => { transport.play(); }, TIMING_DELAY_MS)
+            } else {
+               transport.play()
+            }
+            break
+         case D0: // STOP
+            if (isPlaying) {
+               transport.stop()
+            }
+            break
+         case D1: // SOLO
+            cursorTrack.solo().toggle()
+            break    
+         case Dis1: // MUTE
+            cursorTrack.mute().toggle()
+            break        
+      }
+   } else if (isChannelController(status)) {
+      switch (data1) {
+         case CC20:
+            if (data2 <= previousChannelValue) { // including "0" case
+               cursorTrack.selectPrevious()
+            } else if (data2 >= previousChannelValue) {
+               cursorTrack.selectNext()
+            }
+            previousChannelValue = data2
+            break
+         case CC21:
+            // experimented: faster moving rotary-encoder sends contiguous value not jumped value.
+            if (data2 <= previousPanValue) {
+               cursorTrack.pan().inc(-1, 128)
+            } else if (data2 >= previousPanValue) {
+               cursorTrack.pan().inc(1, 128)
+            }
+            previousPanValue = data2
+            break
+         case CC22:
+            if (data2 <= previousVolumeValue) {
+               cursorTrack.volume().inc(-1, 128)
+            } else if (data2 >= previousVolumeValue) {
+               cursorTrack.volume().inc(1, 128)
+            }
+            previousVolumeValue = data2
+            break
+      }
+   }
 }
 
 // Called when a MIDI sysex message is received on MIDI input port 0.
