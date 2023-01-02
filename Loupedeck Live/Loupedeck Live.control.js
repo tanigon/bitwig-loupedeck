@@ -13,6 +13,8 @@ const TIMING_DELAY_MS = 50
 
 const C0 = 24
 const D0 = 26
+const E0 = 28
+const G0 = 31
 const C1 = 36
 const D1 = 38
 const Dis1 = 39
@@ -20,18 +22,25 @@ const Dis1 = 39
 const CC20 = 20
 const CC21 = 21
 const CC22 = 22
+const CC23 = 23
 
 var isPlaying = false
+var application
 var cursorTrack
+var cursorDevice
 var previousChannelValue = 0
 var previousPanValue = 0
 var previousVolumeValue = 0
+var previousDeviceValue = 0
 
 function init() {
-   transport = host.createTransport();
-   host.getMidiInPort(0).setMidiCallback(onMidi0);
-   host.getMidiInPort(0).setSysexCallback(onSysex0);
-   cursorTrack = host.createCursorTrack("LOUPEDECK_CURSOR", "Loupedeck Cursor", 0, 0, true)
+   application = host.createApplication()
+   transport = host.createTransport()
+   host.getMidiInPort(0).setMidiCallback(onMidi0)
+   host.getMidiInPort(0).setSysexCallback(onSysex0)
+   cursorTrack = host.createCursorTrack("LOUPEDECK_CURSOR", "Track Cursor", 0, 0, true)
+   cursorDevice = cursorTrack.createCursorDevice("LOUPEDECK DEVICE", "Device Cursor", 0, CursorDeviceFollowMode.FOLLOW_SELECTION)
+   cursorDevice.name().markInterested()
 
    transport.isPlaying().addValueObserver( (newValue) => { isPlaying = newValue } )
 
@@ -66,6 +75,15 @@ function onMidi0(status, data1, data2) {
          case Dis1: // MUTE
             cursorTrack.mute().toggle()
             break        
+         case E0: // REC
+            transport.record()
+            if (!isPlaying) {
+               host.scheduleTask( () => { transport.play(); }, TIMING_DELAY_MS)            
+            }
+            break
+         case G0: // TOGGLE/FOCUS DEVICES
+            application.getAction("focus_or_toggle_device_panel").invoke()
+            break
       }
    } else if (isChannelController(status)) {
       switch (data1) {
@@ -94,6 +112,17 @@ function onMidi0(status, data1, data2) {
             }
             previousVolumeValue = data2
             break
+         case CC23:
+            if (data2 <= previousDeviceValue) { // including "0" case
+               cursorDevice.selectPrevious()
+            } else if (data2 >= previousDeviceValue) {
+               cursorDevice.selectNext()
+            }
+            
+            host.println(cursorDevice.name().get())
+            previousDeviceValue = data2
+            break
+     
       }
    }
 }
