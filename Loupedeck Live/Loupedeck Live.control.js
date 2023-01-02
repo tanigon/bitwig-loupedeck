@@ -14,10 +14,15 @@ const TIMING_DELAY_MS = 50
 const C0 = 24
 const D0 = 26
 const E0 = 28
+const F0 = 29
 const G0 = 31
+const A0 = 33
 const C1 = 36
 const D1 = 38
 const Dis1 = 39
+const E1 = 40
+const F1 = 41
+const G1 = 43
 
 const CC20 = 20
 const CC21 = 21
@@ -84,8 +89,27 @@ function onMidi0(status, data1, data2) {
                host.scheduleTask( () => { transport.play(); }, TIMING_DELAY_MS)            
             }
             break
+         case E1: // REWIND TO TOP
+            // transport.rewind()   // ?? some weird movement
+            transport.playStartPosition().set(0.0)
+            if (isPlaying) {
+               transport.jumpToPlayStartPosition()
+            }
+            break
+         case F0: // UNDO
+            application.undo()
+            break
+         case F1: // PREVIOUS CUE
+            transport.jumpToPreviousCueMarker()
+            break
+         case G1: // NEXT CUE
+            transport.jumpToNextCueMarker()
+            break
          case G0: // TOGGLE/FOCUS DEVICES
             application.getAction("focus_or_toggle_device_panel").invoke()
+            break
+         case A0: // BYPASS DEVICE
+            cursorDevice.isEnabled().toggle()
             break
       }
    } else if (isChannelController(status)) {
