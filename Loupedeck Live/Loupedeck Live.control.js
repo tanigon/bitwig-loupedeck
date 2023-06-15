@@ -5,7 +5,7 @@ loadAPI(17);
 host.setShouldFailOnDeprecatedUse(true);
 
 host.defineController("Loupedeck", "Loupedeck Live", "0.1", "8e56e4a9-0159-4e61-b40c-2928bc43e862", "tanigon");
-host.defineMidiPorts(1, 0);
+host.defineMidiPorts(1, 1);
 
 host.addDeviceNameBasedDiscoveryPair(["Loupedeck Live"], ["Loupedeck Live"])
 
